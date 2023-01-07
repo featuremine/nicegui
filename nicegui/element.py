@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import asyncio
 import shlex
+import time
+import uuid
 from abc import ABC
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, Dict, List, Optional, Tuple, Union
@@ -170,10 +173,29 @@ class Element(ABC, Visibility):
         elements = {id: self.client.elements[id].to_dict() for id in ids}
         create_task(globals.sio.emit('update', {'elements': elements}, room=self.client.id))
 
+    async def run_method_async(self, name: str, *args: Any,
+                             respond: bool = True, timeout: float = 1.0, check_interval: float = 0.01) -> Optional[str]:
+        request_id = str(uuid.uuid4())
+        data = {
+            'id': self.id,
+            'name': name,
+            'request_id': request_id if respond else None,
+            'args': args
+        }
+        create_task(globals.sio.emit('run_method', data, room=globals._socket_id or self.client.id))
+        if not respond:
+            return None
+        deadline = time.time() + timeout
+        while request_id not in self.client.waiting_javascript_commands:
+            if time.time() > deadline:
+                raise TimeoutError('JavaScript did not respond in time')
+            await asyncio.sleep(check_interval)
+        return self.client.waiting_javascript_commands.pop(request_id)
+
     def run_method(self, name: str, *args: Any) -> None:
         if not globals.loop:
             return
-        data = {'id': self.id, 'name': name, 'args': args}
+        data = {'id': self.id, 'name': name, 'request_id': None, 'args': args}
         create_task(globals.sio.emit('run_method', data, room=globals._socket_id or self.client.id))
 
     def clear(self) -> None:
