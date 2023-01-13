@@ -30,5 +30,5 @@ class Table(Element):
         super().update()
         self.run_method('update_grid')
 
-    def call_api_method(self, name: str, *args) -> None:
-        self.run_method('call_api_method', name, *args)
+    async def call_api_method(self, name: str, *args) -> None:
+        return await self.run_method_async('call_api_method', name, *args)

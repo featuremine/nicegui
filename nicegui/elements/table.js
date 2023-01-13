@@ -45,7 +45,7 @@ export default {
       this.gridOptions.api.addGlobalListener(this.handle_event);
     },
     call_api_method(name, ...args) {
-      this.gridOptions.api[name](...args);
+      return this.gridOptions.api[name](...args);
     },
     handle_event(type, args) {
       this.$emit(type, {
